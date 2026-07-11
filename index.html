@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sentiment-Aware Conversational System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg-base:       #09090f;
+    --bg-surface:    #11111c;
+    --bg-elevated:   #1a1a2e;
+    --bg-input:      #0d0d18;
+    --border:        #252540;
+    --border-focus:  #7c3aed;
+    --text-primary:  #e8e8f0;
+    --text-secondary:#8888aa;
+    --text-muted:    #44445a;
+    --accent:        #7c3aed;
+    --accent-light:  #a78bfa;
+    --pos-bg:        #052e16;
+    --pos-text:      #86efac;
+    --pos-border:    #16a34a;
+    --neg-bg:        #3b0a0a;
+    --neg-text:      #fca5a5;
+    --neg-border:    #dc2626;
+    --neu-bg:        #1e1b4b;
+    --neu-text:      #a5b4fc;
+    --neu-border:    #4f46e5;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .header-left { display: flex; align-items: center; gap: 12px; }
+
+  .logo {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  .header-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+  .header-sub   { font-size: 11px; color: var(--text-secondary); margin-top: 1px; }
+
+  .header-right { display: flex; align-items: center; gap: 16px; }
+
+  .status {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-secondary);
+  }
+
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 6px #22c55e88;
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .model-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--accent-light);
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+
+  /* ── Sentiment bar ── */
+  .sentiment-bar {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-shrink: 0;
+  }
+
+  .bar-label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
+  .score-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px;
+  }
+
+  .score-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .score-name { color: var(--text-secondary); }
+  .score-val  { font-family:'JetBrains Mono',monospace; font-size:11px; color: var(--text-primary); font-weight:500; }
+
+  .score-bar-wrap {
+    width: 80px; height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .score-bar-fill {
+    height: 100%; border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+
+  /* ── Chat area ── */
+  .chat-wrap {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 800px;
+    width: 100%;
+    margin: 0 auto;
+    scroll-behavior: smooth;
+  }
+
+  .chat-wrap::-webkit-scrollbar { width: 4px; }
+  .chat-wrap::-webkit-scrollbar-track { background: transparent; }
+  .chat-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── Welcome ── */
+  .welcome {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-muted);
+  }
+
+  .welcome-icon {
+    font-size: 40px; margin-bottom: 16px;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+
+  .welcome h2 { font-size: 18px; color: var(--text-secondary); font-weight: 600; margin-bottom: 8px; }
+  .welcome p  { font-size: 13px; line-height: 1.7; max-width: 380px; margin: 0 auto; }
+
+  .welcome-chips {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    justify-content: center; margin-top: 20px;
+  }
+
+  .chip {
+    font-size: 12px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+
+  .chip:hover { border-color: var(--accent); color: var(--accent-light); }
+
+  /* ── Messages ── */
+  .msg { display: flex; flex-direction: column; max-width: 72%; }
+  .msg.user { align-self: flex-end; align-items: flex-end; }
+  .msg.bot  { align-self: flex-start; align-items: flex-start; }
+
+  .msg-meta {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .bubble {
+    padding: 13px 17px;
+    border-radius: 18px;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .user .bubble {
+    background: linear-gradient(135deg, #5b21b6, #7c3aed);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 2px 12px #7c3aed33;
+  }
+
+  .bot .bubble {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+
+  .sentiment-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 500;
+    padding: 3px 10px; border-radius: 20px;
+    margin-top: 6px; border: 1px solid;
+  }
+
+  .badge-positive { background: var(--pos-bg); color: var(--pos-text); border-color: var(--pos-border); }
+  .badge-negative { background: var(--neg-bg); color: var(--neg-text); border-color: var(--neg-border); }
+  .badge-neutral  { background: var(--neu-bg); color: var(--neu-text); border-color: var(--neu-border); }
+
+  .conf-text { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+
+  /* ── Typing indicator ── */
+  .typing {
+    display: none;
+    align-self: flex-start;
+    padding: 14px 18px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    border-bottom-left-radius: 4px;
+  }
+
+  .typing span {
+    display: inline-block;
+    width: 5px; height: 5px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    margin: 0 2px;
+    animation: bounce 1.3s ease-in-out infinite;
+  }
+
+  .typing span:nth-child(2) { animation-delay: .2s; }
+  .typing span:nth-child(3) { animation-delay: .4s; }
+
+  @keyframes bounce {
+    0%,80%,100% { transform: translateY(0); opacity:.5; }
+    40%          { transform: translateY(-6px); opacity:1; }
+  }
+
+  /* ── Input area ── */
+  .input-wrap {
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border);
+    padding: 14px 16px 16px;
+    flex-shrink: 0;
+  }
+
+  .input-inner {
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+
+  .textarea-wrap {
+    flex: 1;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    display: flex;
+    align-items: flex-end;
+    padding: 2px 4px;
+    transition: border-color .15s;
+  }
+
+  .textarea-wrap:focus-within { border-color: var(--accent); }
+
+  textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    padding: 10px 12px;
+    resize: none;
+    max-height: 120px;
+    line-height: 1.5;
+  }
+
+  textarea::placeholder { color: var(--text-muted); }
+
+  .btn-reset {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0 14px;
+    height: 44px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all .15s;
+    flex-shrink: 0;
+  }
+
+  .btn-reset:hover { border-color: var(--accent); color: var(--accent-light); }
+
+  .btn-send {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, #5b21b6, #7c3aed);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: opacity .15s, transform .1s;
+    box-shadow: 0 2px 10px #7c3aed44;
+  }
+
+  .btn-send:hover  { opacity: .88; }
+  .btn-send:active { transform: scale(.96); }
+
+  .btn-send svg { width: 18px; height: 18px; fill: white; }
+
+  .input-hint {
+    text-align: center;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">🧠</div>
+    <div>
+      <div class="header-title">Sentiment-Aware Conversational System</div>
+      <div class="header-sub">Nigerian Context NLP · BERT-LSTM Architecture</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status">
+      <div class="status-dot"></div>
+      Model Active
+    </div>
+    <div class="model-tag">BERT-LSTM v2</div>
+  </div>
+</div>
+
+<!-- Live sentiment scores bar -->
+<div class="sentiment-bar">
+  <span class="bar-label">LIVE SCORES</span>
+  <div class="score-item">
+    <div class="score-dot" style="background:#22c55e"></div>
+    <span class="score-name">Positive</span>
+    <div class="score-bar-wrap">
+      <div class="score-bar-fill" id="bar-pos" style="width:33%;background:#22c55e"></div>
+    </div>
+    <span class="score-val" id="val-pos">—</span>
+  </div>
+  <div class="score-item">
+    <div class="score-dot" style="background:#ef4444"></div>
+    <span class="score-name">Negative</span>
+    <div class="score-bar-wrap">
+      <div class="score-bar-fill" id="bar-neg" style="width:33%;background:#ef4444"></div>
+    </div>
+    <span class="score-val" id="val-neg">—</span>
+  </div>
+  <div class="score-item">
+    <div class="score-dot" style="background:#818cf8"></div>
+    <span class="score-name">Neutral</span>
+    <div class="score-bar-wrap">
+      <div class="score-bar-fill" id="bar-neu" style="width:33%;background:#818cf8"></div>
+    </div>
+    <span class="score-val" id="val-neu">—</span>
+  </div>
+</div>
+
+<!-- Chat area -->
+<div class="chat-wrap" id="chat">
+  <div class="welcome" id="welcome">
+    <div class="welcome-icon">💬</div>
+    <h2>How are you feeling today?</h2>
+    <p>This system detects your sentiment in real time and responds with empathy.<br/>
+       You can type in English or Nigerian Pidgin.</p>
+    <div class="welcome-chips">
+      <div class="chip" onclick="quickSend(this)">I am feeling great today!</div>
+      <div class="chip" onclick="quickSend(this)">Things have been really hard lately</div>
+      <div class="chip" onclick="quickSend(this)">I dey okay sha</div>
+      <div class="chip" onclick="quickSend(this)">E don be for me today</div>
+    </div>
+  </div>
+  <div class="typing" id="typing">
+    <span></span><span></span><span></span>
+  </div>
+</div>
+
+<!-- Input area -->
+<div class="input-wrap">
+  <div class="input-inner">
+    <div class="textarea-wrap">
+      <textarea
+        id="inp"
+        rows="1"
+        placeholder="Type your message in English or Nigerian Pidgin..."
+        onkeydown="handleKey(event)"
+        oninput="resize(this)"
+      ></textarea>
+    </div>
+    <button class="btn-reset" onclick="resetChat()">Reset</button>
+    <button class="btn-send" onclick="sendMessage()" title="Send message">
+      <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+    </button>
+  </div>
+  <div class="input-hint">Press Enter to send · Shift+Enter for new line</div>
+</div>
+
+<script>
+  function resize(el) {
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 120) + "px";
+  }
+
+  function handleKey(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  function quickSend(el) {
+    document.getElementById("inp").value = el.textContent;
+    sendMessage();
+  }
+
+  function badgeClass(s) {
+    return s === "positive" ? "badge-positive" :
+           s === "negative" ? "badge-negative" : "badge-neutral";
+  }
+
+  function badgeEmoji(s) {
+    return s === "positive" ? "😊 Positive" :
+           s === "negative" ? "😔 Negative" : "😐 Neutral";
+  }
+
+  function updateScoreBar(scores) {
+    const pos = (scores.positive * 100).toFixed(1);
+    const neg = (scores.negative * 100).toFixed(1);
+    const neu = (scores.neutral  * 100).toFixed(1);
+    document.getElementById("bar-pos").style.width = pos + "%";
+    document.getElementById("bar-neg").style.width = neg + "%";
+    document.getElementById("bar-neu").style.width = neu + "%";
+    document.getElementById("val-pos").textContent = pos + "%";
+    document.getElementById("val-neg").textContent = neg + "%";
+    document.getElementById("val-neu").textContent = neu + "%";
+  }
+
+  function addMessage(role, text, sentiment, confidence) {
+    const chat   = document.getElementById("chat");
+    const typing = document.getElementById("typing");
+    const div    = document.createElement("div");
+    div.className = "msg " + role;
+
+    const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+    let badge = "";
+    if (role === "user" && sentiment) {
+      badge = `
+        <span class="sentiment-badge ${badgeClass(sentiment)}">${badgeEmoji(sentiment)}</span>
+        <span class="conf-text">${confidence}% confidence</span>`;
+    }
+
+    const label = role === "user" ? "You" : "System";
+    div.innerHTML = `
+      <div class="msg-meta">${label} · ${time}</div>
+      <div class="bubble">${text}</div>
+      ${badge}`;
+
+    chat.insertBefore(div, typing);
+    chat.scrollTop = chat.scrollHeight;
+    return div;
+  }
+
+  async function sendMessage() {
+    const inp = document.getElementById("inp");
+    const msg = inp.value.trim();
+    if (!msg) return;
+
+    inp.value = "";
+    inp.style.height = "auto";
+
+    // Remove welcome screen
+    const welcome = document.getElementById("welcome");
+    if (welcome) welcome.remove();
+
+    // Show user bubble (no badge yet)
+    const userDiv = addMessage("user", msg, null, null);
+
+    // Show typing indicator
+    const typing = document.getElementById("typing");
+    typing.style.display = "block";
+    document.getElementById("chat").scrollTop = 99999;
+
+    try {
+      const res  = await fetch("/chat", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ message: msg })
+      });
+      const data = await res.json();
+
+      // Update user bubble with sentiment badge
+      const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      userDiv.innerHTML = `
+        <div class="msg-meta">You · ${time}</div>
+        <div class="bubble">${msg}</div>
+        <span class="sentiment-badge ${badgeClass(data.sentiment)}">${badgeEmoji(data.sentiment)}</span>
+        <span class="conf-text">${data.confidence}% confidence</span>`;
+
+      // Update score bars
+      updateScoreBar(data.scores);
+
+      typing.style.display = "none";
+      addMessage("bot", data.response);
+
+    } catch (err) {
+      typing.style.display = "none";
+      addMessage("bot", "Sorry, I could not reach the server. Please make sure the Flask app is running.");
+    }
+  }
+
+  async function resetChat() {
+    await fetch("/reset", { method: "POST" });
+    const chat = document.getElementById("chat");
+    chat.innerHTML = `
+      <div class="welcome" id="welcome">
+        <div class="welcome-icon">💬</div>
+        <h2>How are you feeling today?</h2>
+        <p>This system detects your sentiment in real time and responds with empathy.<br/>
+           You can type in English or Nigerian Pidgin.</p>
+        <div class="welcome-chips">
+          <div class="chip" onclick="quickSend(this)">I am feeling great today!</div>
+          <div class="chip" onclick="quickSend(this)">Things have been really hard lately</div>
+          <div class="chip" onclick="quickSend(this)">I dey okay sha</div>
+          <div class="chip" onclick="quickSend(this)">E don be for me today</div>
+        </div>
+      </div>
+      <div class="typing" id="typing"><span></span><span></span><span></span></div>`;
+
+    // Reset score bars
+    ["pos","neg","neu"].forEach(k => {
+      document.getElementById("bar-"+k).style.width = "33%";
+      document.getElementById("val-"+k).textContent = "—";
+    });
+  }
+</script>
+</body>
+</html>
