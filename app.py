@@ -7,24 +7,20 @@ from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import gdown
 
-# Download model from Google Drive if not present
+# ── Auto-download model from Google Drive if not present ─────────
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "bert_lstm_best_v2.pt")
+
 if not os.path.exists(MODEL_PATH):
     os.makedirs("models", exist_ok=True)
     print("Downloading model from Google Drive...")
     gdown.download(
-        "YOUR_GOOGLE_DRIVE_FILE_ID",
-        MODEL_PATH,
+        id="13lXPPs2Swgcx8QduF6s6g9GtNj1xU00M",
+        output=MODEL_PATH,
         quiet=False
     )
-    print("Model downloaded!")
-
-app = Flask(__name__)
-CORS(app)
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Running on: {device}")
-
+    print("Model downloaded successfully!")
+else:
+    print("Model already exists, skipping download.")
 # ── Model definition ─────────────────────────────────────────────────────────
 class BertLSTMClassifier(nn.Module):
     def __init__(self, bert_model_name="bert-base-uncased",
