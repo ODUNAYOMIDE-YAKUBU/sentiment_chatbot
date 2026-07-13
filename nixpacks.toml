@@ -1,12 +1,12 @@
 [phases.setup]
-nixPkgs = ["python310", "gcc"]
+nixPkgs = ["python310", "gcc", "zlib"]
 
 [phases.install]
 cmds = [
   "pip install --upgrade pip",
   "pip install flask==3.0.0 flask-cors==4.0.0 gunicorn==21.2.0 numpy==1.26.4 gdown==4.7.3",
   "pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cpu",
-  "pip install transformers==4.38.0"
+  "pip install transformers==4.38.0 tokenizers"
 ]
 
 [start]
