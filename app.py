@@ -1,65 +1,14 @@
 import torch
-import torch.nn as nn
 import random
 import os
-from transformers import BertModel, BertTokenizer
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-import gdown
 
-# ── Auto-download model from Google Drive if not present ─────────
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "bert_lstm_best_v2.pt")
+app = Flask(__name__)
+CORS(app)
 
-if not os.path.exists(MODEL_PATH):
-    os.makedirs("models", exist_ok=True)
-    print("Downloading model from Google Drive...")
-    gdown.download(
-        id="13lXPPs2Swgcx8QduF6s6g9GtNj1xU00M",
-        output=MODEL_PATH,
-        quiet=False
-    )
-    print("Model downloaded successfully!")
-else:
-    print("Model already exists, skipping download.")
-# ── Model definition ─────────────────────────────────────────────────────────
-class BertLSTMClassifier(nn.Module):
-    def __init__(self, bert_model_name="bert-base-uncased",
-                 hidden_dim=256, num_layers=2,
-                 num_classes=3, dropout=0.3):
-        super(BertLSTMClassifier, self).__init__()
-        self.bert = BertModel.from_pretrained(bert_model_name)
-        self.lstm = nn.LSTM(
-            input_size=768,
-            hidden_size=hidden_dim,
-            num_layers=num_layers,
-            batch_first=True,
-            dropout=dropout,
-            bidirectional=True
-        )
-        self.dropout    = nn.Dropout(dropout)
-        self.classifier = nn.Linear(hidden_dim * 2, num_classes)
-
-    def forward(self, input_ids, attention_mask):
-        bert_out        = self.bert(input_ids=input_ids, attention_mask=attention_mask)
-        sequence_output = bert_out.last_hidden_state
-        lstm_out, _     = self.lstm(sequence_output)
-        lstm_final      = lstm_out[:, -1, :]
-        out             = self.dropout(lstm_final)
-        return self.classifier(out)
-
-# ── Load tokenizer and model ─────────────────────────────────────────────────
-print("Loading tokenizer...")
-device = torch.device("cpu")
-print(f"Running on: {device}")
-
-tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-
-print("Loading BERT-LSTM model...")
-MODEL_PATH = os.path.join("models", "bert_lstm_best_v2.pt")
-sentiment_model = BertLSTMClassifier().to(device)
-sentiment_model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
-sentiment_model.eval()
-print("Model loaded successfully!")
+# Model, tokenizer and device are loaded in wsgi.py before gunicorn starts
+from wsgi import sentiment_model, tokenizer, device
 
 # ── Sentiment prediction ──────────────────────────────────────────────────────
 def predict_sentiment(text):
@@ -95,7 +44,7 @@ RESPONSES = {
         "default": [
             "That is wonderful to hear! I am really glad things are going well for you. 😊",
             "Fantastic! Keep that positive energy going — you truly deserve it!",
-            "That is really great news! What else has been making your day good?",
+            "That is great news! What else has been making your day good?",
             "Amazing! It sounds like things are really working out for you. 🌟",
             "I love hearing that! You seem to be in a really good place right now.",
             "That warms my heart! You deserve every bit of happiness coming your way.",
@@ -125,7 +74,6 @@ RESPONSES = {
             "This kind win no come easy — you deserve to enjoy every moment of it."
         ]
     },
-
     "negative": {
         "default": [
             "I am really sorry to hear that. That sounds genuinely tough. 💙",
@@ -172,7 +120,6 @@ RESPONSES = {
             "Make you no rush yourself to feel okay — grief need time, and that is completely fine."
         ]
     },
-
     "neutral": {
         "default": [
             "I see, thanks for sharing that with me. Feel free to tell me more.",
@@ -195,6 +142,7 @@ RESPONSES = {
         ]
     }
 }
+
 # ── Dialogue state ────────────────────────────────────────────────────────────
 conversation_history = []
 sentiment_trail      = []
@@ -204,37 +152,27 @@ def get_response(sentiment, turn_count):
         len(sentiment_trail) >= 2 and
         all(s == "negative" for s in sentiment_trail[-2:])
     )
-
     if sentiment == "negative" and escalating:
         pool = RESPONSES["negative"]["escalating"]
-
     elif sentiment == "negative":
-        # Randomly mix default and Nigerian context responses
         pool = (
             RESPONSES["negative"]["default"] +
             RESPONSES["negative"]["nigerian_context"]
         )
-
     elif sentiment == "positive" and turn_count > 2:
-        # Mix follow-up and achievement responses for longer conversations
         pool = (
             RESPONSES["positive"]["follow_up"] +
             RESPONSES["positive"]["achievement"]
         )
-
     elif sentiment == "positive":
         pool = RESPONSES["positive"]["default"]
-
     elif sentiment == "neutral" and turn_count > 1:
-        # Mix default and checking-in responses
         pool = (
             RESPONSES["neutral"]["default"] +
             RESPONSES["neutral"]["checking_in"]
         )
-
     else:
         pool = RESPONSES["neutral"]["default"]
-
     return random.choice(pool)
 
 # ── Routes ────────────────────────────────────────────────────────────────────
