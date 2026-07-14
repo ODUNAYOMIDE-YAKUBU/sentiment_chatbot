@@ -49,6 +49,9 @@ class BertLSTMClassifier(nn.Module):
 
 # ── Load tokenizer and model ─────────────────────────────────────────────────
 print("Loading tokenizer...")
+device = torch.device("cpu")
+print(f"Running on: {device}")
+
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 
 print("Loading BERT-LSTM model...")
