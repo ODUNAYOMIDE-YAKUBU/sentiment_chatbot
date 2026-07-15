@@ -660,6 +660,10 @@ with chat_area:
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
+# ── Input clearing trick ──────────────────────────────────────────
+if "input_key" not in st.session_state:
+    st.session_state.input_key = 0
+
 # Input area
 col1, col2 = st.columns([5, 1])
 with col1:
@@ -668,7 +672,7 @@ with col1:
         placeholder="Type your message in English or Nigerian Pidgin...",
         height=70,
         label_visibility="collapsed",
-        key="chat_input"
+        key=f"chat_input_{st.session_state.input_key}"
     )
 with col2:
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
@@ -682,6 +686,8 @@ if st.session_state.quick_msg:
 
 # Process message
 if send and user_input and user_input.strip():
+    # Increment key to force input reset
+    st.session_state.input_key += 1
     text = user_input.strip()
 
     sentiment, confidence, scores = predict_sentiment(text, model, tokenizer, device)
