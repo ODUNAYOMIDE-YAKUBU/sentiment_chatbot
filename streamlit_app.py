@@ -5,13 +5,14 @@ import random
 import os
 import gdown
 from transformers import BertModel, BertTokenizer
+from datetime import datetime
 
 # ── Page config ───────────────────────────────────────────────────
 st.set_page_config(
     page_title="Sentiment-Aware Conversational System",
     page_icon="🧠",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # ── Custom CSS ────────────────────────────────────────────────────
@@ -33,31 +34,127 @@ header    { visibility: hidden; }
     background: #0a0a12;
 }
 
-/* Sidebar */
+/* Hide sidebar completely */
 section[data-testid="stSidebar"] {
-    background: #11111e;
-    border-right: 1px solid #1e1e35;
+    display: none !important;
 }
 
-section[data-testid="stSidebar"] * {
-    color: #c8c8e0 !important;
+/* Main container - center the chat */
+.block-container {
+    max-width: 900px !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+    padding-top: 0 !important;
+}
+
+/* ── Header ─────────────────────────────────────── */
+.header-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 0 12px;
+    border-bottom: 1px solid #1e1e35;
+    margin-bottom: 0;
+}
+
+.header-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.header-text {
+    flex: 1;
+}
+
+.header-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #e0e0f0;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.header-subtitle {
+    font-size: 12px;
+    color: #5a5a7a;
+    margin: 0;
+    line-height: 1.3;
+}
+
+/* ── Live Scores Bar ────────────────────────────── */
+.scores-bar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 10px 0;
+    border-bottom: 1px solid #1e1e35;
+    margin-bottom: 16px;
+}
+
+.scores-bar-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #5a5a7a;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.score-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.score-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.score-dot-positive { background: #22c55e; }
+.score-dot-negative { background: #ef4444; }
+.score-dot-neutral  { background: #818cf8; }
+
+.score-mini-bar {
+    width: 60px;
+    height: 4px;
+    background: #1e1e35;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.score-mini-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.4s ease;
+}
+
+.score-mini-val {
+    font-size: 11px;
+    font-weight: 600;
+    color: #e0e0f0;
+    font-family: 'JetBrains Mono', monospace;
+    min-width: 36px;
+}
+
+/* ── Chat Area ──────────────────────────────────── */
+.chat-container {
+    max-width: 700px;
+    margin: 0 auto;
 }
 
 /* Chat messages */
-.user-bubble {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    margin: 12px 0;
-    animation: slideIn 0.2s ease;
-}
-
-.bot-bubble {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    margin: 12px 0;
-    animation: slideIn 0.2s ease;
+.message-wrapper {
+    margin: 16px 0;
+    animation: slideIn 0.25s ease;
 }
 
 @keyframes slideIn {
@@ -65,49 +162,61 @@ section[data-testid="stSidebar"] * {
     to   { opacity: 1; transform: translateY(0); }
 }
 
+.message-meta {
+    font-size: 11px;
+    color: #5a5a7a;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.message-meta-user {
+    text-align: right;
+}
+
+.message-meta-bot {
+    text-align: left;
+}
+
+.user-bubble-wrap {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.bot-bubble-wrap {
+    display: flex;
+    justify-content: flex-start;
+}
+
 .user-text {
-    background: linear-gradient(135deg, #4c1d95, #7c3aed);
+    background: linear-gradient(135deg, #5b21b6, #7c3aed);
     color: #ffffff;
-    padding: 13px 18px;
-    border-radius: 20px 20px 4px 20px;
-    max-width: 75%;
+    padding: 12px 18px;
+    border-radius: 18px 18px 4px 18px;
+    max-width: 80%;
     font-size: 14px;
-    line-height: 1.65;
-    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.25);
+    line-height: 1.6;
+    box-shadow: 0 2px 12px rgba(124, 58, 237, 0.2);
 }
 
 .bot-text {
     background: #1a1a2e;
     color: #e0e0f0;
-    padding: 13px 18px;
-    border-radius: 20px 20px 20px 4px;
-    max-width: 75%;
+    padding: 12px 18px;
+    border-radius: 18px 18px 18px 4px;
+    max-width: 80%;
     font-size: 14px;
-    line-height: 1.65;
+    line-height: 1.6;
     border: 1px solid #2a2a45;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-}
-
-.bot-label {
-    font-size: 11px;
-    color: #5a5a7a;
-    margin-bottom: 4px;
-    margin-left: 4px;
-    font-weight: 500;
-    letter-spacing: 0.03em;
-}
-
-.user-label {
-    font-size: 11px;
-    color: #5a5a7a;
-    margin-bottom: 4px;
-    margin-right: 4px;
-    font-weight: 500;
-    letter-spacing: 0.03em;
-    text-align: right;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
 /* Sentiment badges */
+.badge-wrap-user {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 6px;
+}
+
 .badge {
     display: inline-flex;
     align-items: center;
@@ -116,7 +225,6 @@ section[data-testid="stSidebar"] * {
     border-radius: 20px;
     font-size: 11px;
     font-weight: 600;
-    margin-top: 6px;
     letter-spacing: 0.04em;
 }
 
@@ -138,39 +246,10 @@ section[data-testid="stSidebar"] * {
     border: 1px solid #3730a3;
 }
 
-/* Score bars */
-.score-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 4px 0;
-}
-
-.score-label {
+.confidence-text {
     font-size: 11px;
-    color: #6b7280;
-    width: 60px;
-    font-weight: 500;
-}
-
-.score-bar-bg {
-    flex: 1;
-    height: 5px;
-    background: #1e1e35;
-    border-radius: 3px;
-    overflow: hidden;
-}
-
-.score-bar-fill {
-    height: 100%;
-    border-radius: 3px;
-    transition: width 0.4s ease;
-}
-
-.score-val {
-    font-size: 11px;
-    color: #9ca3af;
-    width: 38px;
+    color: #5a5a7a;
+    margin-top: 3px;
     text-align: right;
     font-family: 'JetBrains Mono', monospace;
 }
@@ -178,27 +257,73 @@ section[data-testid="stSidebar"] * {
 /* Welcome screen */
 .welcome-wrap {
     text-align: center;
-    padding: 60px 20px 40px;
+    padding: 80px 20px 60px;
 }
 
 .welcome-icon {
-    font-size: 52px;
+    font-size: 48px;
     margin-bottom: 16px;
 }
 
 .welcome-title {
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 600;
     color: #e0e0f0;
     margin-bottom: 10px;
 }
 
 .welcome-sub {
-    font-size: 14px;
+    font-size: 13px;
     color: #6b7280;
-    max-width: 420px;
-    margin: 0 auto 28px;
+    max-width: 400px;
+    margin: 0 auto 32px;
     line-height: 1.7;
+}
+
+/* Quick chips */
+.quick-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+/* Input area */
+.input-area {
+    position: sticky;
+    bottom: 0;
+    background: #0a0a12;
+    padding: 12px 0 20px;
+    border-top: 1px solid #1e1e35;
+    margin-top: 20px;
+}
+
+.stTextArea textarea {
+    background: #11111e !important;
+    border: 1px solid #2a2a45 !important;
+    border-radius: 14px !important;
+    color: #e0e0f0 !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 14px !important;
+    resize: none !important;
+}
+
+.stTextArea textarea:focus {
+    border-color: #7c3aed !important;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15) !important;
+}
+
+/* Send button */
+.send-btn > button {
+    background: linear-gradient(135deg, #5b21b6, #7c3aed) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 12px !important;
+    font-weight: 500 !important;
+    height: 44px !important;
+    width: 100% !important;
 }
 
 /* Chip buttons */
@@ -220,113 +345,32 @@ section[data-testid="stSidebar"] * {
     background: #1e1a2e !important;
 }
 
-/* Primary send button */
-div[data-testid="stButton"]:last-child > button {
-    background: linear-gradient(135deg, #5b21b6, #7c3aed) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 12px !important;
-    font-weight: 500 !important;
-}
-
-/* Input box */
-.stTextArea textarea {
-    background: #11111e !important;
+/* Reset button */
+.reset-btn > button {
+    background: transparent !important;
     border: 1px solid #2a2a45 !important;
-    border-radius: 12px !important;
-    color: #e0e0f0 !important;
-    font-family: 'Inter', sans-serif !important;
-    font-size: 14px !important;
+    color: #5a5a7a !important;
+    font-size: 12px !important;
 }
 
-.stTextArea textarea:focus {
-    border-color: #7c3aed !important;
-    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15) !important;
+.reset-btn > button:hover {
+    border-color: #ef4444 !important;
+    color: #fca5a5 !important;
 }
 
-/* Metric cards */
-.metric-card {
-    background: #11111e;
-    border: 1px solid #1e1e35;
-    border-radius: 12px;
-    padding: 14px 16px;
-    margin-bottom: 10px;
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
 }
-
-.metric-title {
-    font-size: 11px;
-    color: #5a5a7a;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 6px;
+::-webkit-scrollbar-track {
+    background: #0a0a12;
 }
-
-.metric-value {
-    font-size: 20px;
-    font-weight: 600;
-    color: #e0e0f0;
+::-webkit-scrollbar-thumb {
+    background: #2a2a45;
+    border-radius: 3px;
 }
-
-/* Divider */
-hr {
-    border: none;
-    border-top: 1px solid #1e1e35;
-    margin: 16px 0;
-}
-
-/* Sidebar stat pill */
-.stat-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: #1a1a2e;
-    border: 1px solid #2a2a45;
-    border-radius: 20px;
-    padding: 5px 12px;
-    font-size: 12px;
-    color: #a0a0c0;
-    margin: 3px 2px;
-}
-
-.online-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #22c55e;
-    display: inline-block;
-    box-shadow: 0 0 5px #22c55e88;
-    animation: blink 2s ease-in-out infinite;
-}
-
-@keyframes blink {
-    0%,100% { opacity: 1; }
-    50%      { opacity: 0.4; }
-}
-
-/* History items */
-.history-item {
-    background: #11111e;
-    border: 1px solid #1e1e35;
-    border-radius: 10px;
-    padding: 10px 14px;
-    margin-bottom: 8px;
-    font-size: 12px;
-}
-
-.history-sentiment {
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    margin-bottom: 3px;
-}
-
-.history-text {
-    color: #8888aa;
-    line-height: 1.5;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+::-webkit-scrollbar-thumb:hover {
+    background: #3a3a55;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -380,71 +424,106 @@ RESPONSES = {
         "default": [
             "That is wonderful to hear! I am really glad things are going well for you. 😊",
             "Fantastic! Keep that positive energy going — you truly deserve it!",
+            "That is really great news! What else has been making your day good?",
             "Amazing! It sounds like things are really working out for you. 🌟",
             "I love hearing that! You seem to be in a really good place right now.",
             "That warms my heart! You deserve every bit of happiness coming your way.",
+            "Wow, that is such good news! I am genuinely happy for you. 🎉",
+            "See you thriving! This is so good to hear — keep going strong.",
+            "You are doing amazingly well and that is something to be proud of.",
+            "That kind of positivity is contagious! Thank you for sharing it with me.",
             "God don show up for you! That is really beautiful to hear. 🙏",
-            "E good to hear say things dey go well — you deserve am!",
-            "See you thriving! This is so good to hear — keep going strong."
+            "E good to hear say things dey go well — you deserve am!"
         ],
         "follow_up": [
             "You seem to be on a great streak! What has been the highlight for you?",
-            "That positive energy keeps building! Tell me more. 🎉",
+            "That positive energy keeps building! Tell me more about what is going on. 🎉",
             "You are really thriving and I am genuinely happy to hear that.",
             "Things seem to keep getting better for you — that is beautiful to see!",
-            "You dey shine! Wetin you do different wey things dey go like this?"
+            "You have been carrying so much good energy lately. What is your secret?",
+            "I have noticed things keep going well for you — that is not by accident. Keep it up!",
+            "You dey shine! Wetin you do different wey things dey go like this?",
+            "Every time we talk you bring good news — I really appreciate that energy!"
         ],
         "achievement": [
             "That is a massive achievement! You put in the work and it paid off. 🏆",
             "You earned that! Nobody can take that away from you.",
+            "See the results of your hard work! This is just the beginning.",
+            "You should be incredibly proud of yourself right now. Well done! 🎊",
             "Na your hustle carry you reach here — celebrate yourself well well!",
-            "You should be incredibly proud of yourself right now. Well done! 🎊"
+            "This kind win no come easy — you deserve to enjoy every moment of it."
         ]
     },
+
     "negative": {
         "default": [
             "I am really sorry to hear that. That sounds genuinely tough. 💙",
             "That must be really hard for you right now. I hear you and I am here.",
-            "I understand — it is okay to feel this way. You are not alone.",
+            "I understand — it is completely okay to feel this way. You are not alone.",
             "That sounds really frustrating. Would you like to talk about it more?",
             "I am sorry you are going through this. How can I support you right now?",
+            "That is a lot to carry. Please know that your feelings are completely valid.",
+            "I hear the pain in your words and I want you to know I genuinely care.",
+            "Sometimes life gets really heavy. I am glad you are talking about it.",
+            "You do not have to pretend everything is fine. I am here to listen.",
+            "That kind of situation would wear anyone down. Be gentle with yourself.",
             "I no go lie, that one heavy. But I dey here with you through am. 💙",
-            "E go better — this pain you dey feel now no go last forever. Hold on.",
-            "Abeg no let it weigh you down — you strong pass this thing.",
-            "Na so life be sometimes, but you go scale through. I dey here for you.",
-            "You do not have to pretend everything is fine. I am here to listen."
+            "E go better — this pain you dey feel now no go last forever. Hold on."
         ],
         "escalating": [
-            "I can see this has been really weighing on you. Please know that you matter. 💙",
-            "It sounds like things have been really difficult. Have you talked to someone you trust?",
-            "I am genuinely concerned. You do not have to face this alone. 🤝",
-            "Na you strong pass this thing — but you no need face am alone abeg.",
-            "You have been carrying a lot. Please be gentle with yourself."
+            "I can see this has been really weighing on you. Please know that you matter deeply and things can get better. 💙",
+            "It sounds like things have been really difficult lately. Have you been able to talk to someone you trust?",
+            "I am genuinely concerned and I want you to know you do not have to face this alone. I am here. 🤝",
+            "You have been carrying a lot. Please be gentle with yourself — reaching out like this takes real courage.",
+            "I hear you and I want you to know that what you are feeling is real and valid. You deserve support.",
+            "This sounds like more than you should carry alone. Please consider reaching out to someone close to you.",
+            "Na you strong pass this thing wey dey worry you — but you no need face am alone abeg.",
+            "I dey worried about you. You matter and your wellbeing matters. Make you talk to somebody wey you trust."
         ],
         "nigerian_context": [
             "E go better, I promise you. This kind situation no go last forever. 💪",
+            "Abeg no let it weigh you down too much — you strong pass this thing.",
+            "Na so life be sometimes, but you go scale through. I dey here for you.",
+            "You don try well well already. Just hold on small — better days dey come.",
             "Even when e dark like this, e no mean say light no dey come. E go bright again.",
+            "This one na test wey go make you stronger — you go look back and thank God.",
+            "I know say e dey pain you right now, but you too tough to give up. Keep going.",
             "Naija people strong — and you be part of that strength. This one no go finish you.",
-            "Oya breathe small. You dey do better than you think, even if e no feel like am."
+            "Oya breathe small. You dey do better than you think, even if e no feel like am.",
+            "No be everything wey heavy suppose break you — some things just dey make you grow."
+        ],
+        "loss_grief": [
+            "I am so deeply sorry for what you are going through. Grief is one of the hardest things to carry.",
+            "There are no words that can take this pain away, but please know I am here with you.",
+            "It is okay to grieve. Take all the time you need — there is no rush to feel better.",
+            "Your pain is completely understandable. Please be very gentle with yourself right now. 💙",
+            "Loss changes everything. I am truly sorry you are experiencing this.",
+            "Make you no rush yourself to feel okay — grief need time, and that is completely fine."
         ]
     },
+
     "neutral": {
         "default": [
-            "I see, thanks for sharing. Feel free to tell me more.",
-            "Got it. How are you feeling about everything overall?",
-            "I hear you. Is there anything specific on your mind?",
-            "I am here and listening. Take your time.",
-            "I dey hear you. Anything wey you wan talk about — I dey here.",
-            "Sometimes things just are what they are. How are you sitting with it?"
+            "I see, thanks for sharing that with me. Feel free to tell me more.",
+            "Alright, I understand. How are you feeling about everything overall?",
+            "Got it. Is there anything specific on your mind you would like to talk about?",
+            "Okay, I am following you. What else would you like to share?",
+            "I hear you. Take your time — I am here to listen without judgment.",
+            "That is interesting. What has been on your mind lately beyond that?",
+            "I appreciate you sharing that with me. How has your day been overall?",
+            "I am here and I am listening. Is there something deeper you would like to explore?",
+            "Sometimes things just are what they are. How are you sitting with it?",
+            "I dey hear you. Anything wey you wan talk about — I dey here for you."
         ],
         "checking_in": [
-            "How are you really doing today? Sometimes the honest answer is different.",
-            "Beyond the surface, how are you feeling inside?",
-            "I dey check on you — how you really dey? No need to form strong."
+            "How are you really doing today? Sometimes the honest answer is different from what we say.",
+            "I just want to check in — how has life been treating you lately?",
+            "Beyond what is happening on the surface, how are you feeling inside?",
+            "Sometimes neutral is actually okay. Are you at peace with where things are?",
+            "I dey check on you — how you really dey? No need to form strong if you no dey alright."
         ]
     }
 }
-
 QUICK_MESSAGES = [
     "I am feeling great today! 😊",
     "Everything don spoil for my life 😔",
@@ -496,24 +575,63 @@ def predict_sentiment(text, model, tokenizer, device):
 
 def badge_html(sentiment, confidence):
     emoji = "😊" if sentiment == "positive" else "😔" if sentiment == "negative" else "😐"
-    cls   = f"badge-{sentiment}"
-    return f'<span class="badge {cls}">{emoji} {sentiment.capitalize()} · {confidence:.1f}%</span>'
+    cls   = "badge-" + sentiment
+    return '<span class="badge ' + cls + '">' + emoji + ' ' + sentiment.capitalize() + '</span>'
 
 
-def score_bars_html(scores):
-    bars = ""
-    colors = {"positive": "#22c55e", "negative": "#ef4444", "neutral": "#818cf8"}
-    for label, color in colors.items():
-        val = scores[label] * 100
-        bars += f"""
-        <div class="score-row">
-            <span class="score-label">{label.capitalize()}</span>
-            <div class="score-bar-bg">
-                <div class="score-bar-fill" style="width:{val:.1f}%;background:{color}"></div>
-            </div>
-            <span class="score-val">{val:.1f}%</span>
-        </div>"""
-    return bars
+def score_item_html(label, color_class, color_hex, value):
+    return (
+        '<div class="score-item">'
+        '  <span class="score-dot ' + color_class + '"></span>'
+        '  <span style="color:#a0a0c0;font-weight:500;">' + label.capitalize() + '</span>'
+        '  <div class="score-mini-bar">'
+        '    <div class="score-mini-fill" style="width:' + f"{value:.1f}" + '%;background:' + color_hex + '"></div>'
+        '  </div>'
+        '  <span class="score-mini-val">' + f"{value:.1f}" + '%</span>'
+        '</div>'
+    )
+
+
+def scores_bar_html(scores):
+    """Render the horizontal live scores bar like Image 2"""
+    items = (
+        score_item_html("positive", "score-dot-positive", "#22c55e", scores["positive"] * 100) +
+        score_item_html("negative", "score-dot-negative", "#ef4444", scores["negative"] * 100) +
+        score_item_html("neutral", "score-dot-neutral", "#818cf8", scores["neutral"] * 100)
+    )
+    return '<div class="scores-bar"><span class="scores-bar-label">Live Scores</span>' + items + '</div>'
+
+
+def empty_scores_bar_html():
+    """Render empty scores bar before any message is sent"""
+    return (
+        '<div class="scores-bar">'
+        '  <span class="scores-bar-label">Live Scores</span>'
+        '  <div class="score-item">'
+        '    <span class="score-dot score-dot-positive"></span>'
+        '    <span style="color:#5a5a7a;font-size:12px;">Positive</span>'
+        '    <div class="score-mini-bar"><div class="score-mini-fill" style="width:0%;background:#22c55e"></div></div>'
+        '    <span class="score-mini-val">--</span>'
+        '  </div>'
+        '  <div class="score-item">'
+        '    <span class="score-dot score-dot-negative"></span>'
+        '    <span style="color:#5a5a7a;font-size:12px;">Negative</span>'
+        '    <div class="score-mini-bar"><div class="score-mini-fill" style="width:0%;background:#ef4444"></div></div>'
+        '    <span class="score-mini-val">--</span>'
+        '  </div>'
+        '  <div class="score-item">'
+        '    <span class="score-dot score-dot-neutral"></span>'
+        '    <span style="color:#5a5a7a;font-size:12px;">Neutral</span>'
+        '    <div class="score-mini-bar"><div class="score-mini-fill" style="width:0%;background:#818cf8"></div></div>'
+        '    <span class="score-mini-val">--</span>'
+        '  </div>'
+        '</div>'
+    )
+
+
+def format_time():
+    """Format current time like '06:58 AM'"""
+    return datetime.now().strftime("%I:%M %p").lstrip("0")
 
 
 # ── Session state ─────────────────────────────────────────────────
@@ -523,6 +641,7 @@ if "last_scores"     not in st.session_state: st.session_state.last_scores     =
 if "last_sentiment"  not in st.session_state: st.session_state.last_sentiment  = None
 if "total_turns"     not in st.session_state: st.session_state.total_turns     = 0
 if "quick_msg"       not in st.session_state: st.session_state.quick_msg       = None
+if "timestamps"      not in st.session_state: st.session_state.timestamps      = []
 
 
 # ── Load model ────────────────────────────────────────────────────
@@ -530,106 +649,37 @@ with st.spinner("Loading BERT-LSTM model — please wait a moment..."):
     model, tokenizer, device = load_model()
 
 
-# ── Sidebar ───────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("""
-    <div style='padding:4px 0 16px'>
-        <div style='font-size:20px;font-weight:600;color:#e0e0f0;margin-bottom:4px'>🧠 SentiChat</div>
-        <div style='font-size:12px;color:#5a5a7a'>Nigerian Context NLP System</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown('<div class="stat-pill"><span class="online-dot"></span> Model active</div>', unsafe_allow_html=True)
-    st.markdown('<div class="stat-pill">⚡ BERT-LSTM v2</div>', unsafe_allow_html=True)
-    st.markdown('<div class="stat-pill">🇳🇬 Nigerian context</div>', unsafe_allow_html=True)
-
-    st.markdown("<hr>", unsafe_allow_html=True)
-
-    # Live scores
-    st.markdown('<div style="font-size:11px;font-weight:600;color:#5a5a7a;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px">Live sentiment scores</div>', unsafe_allow_html=True)
-
-    if st.session_state.last_scores:
-        scores    = st.session_state.last_scores
-        sentiment = st.session_state.last_sentiment
-        emoji     = "😊" if sentiment == "positive" else "😔" if sentiment == "negative" else "😐"
-        color     = "#22c55e" if sentiment == "positive" else "#ef4444" if sentiment == "negative" else "#818cf8"
-
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-title">Detected sentiment</div>
-            <div class="metric-value" style="color:{color}">{emoji} {sentiment.capitalize()}</div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown(score_bars_html(scores), unsafe_allow_html=True)
-    else:
-        st.markdown('<div style="font-size:13px;color:#5a5a7a;padding:8px 0">Send a message to see live scores</div>', unsafe_allow_html=True)
-
-    st.markdown("<hr>", unsafe_allow_html=True)
-
-    # Stats
-    total = len([m for m in st.session_state.messages if m["role"] == "user"])
-    if total > 0:
-        trail  = st.session_state.sentiment_trail
-        pos    = trail.count("positive")
-        neg    = trail.count("negative")
-        neu    = trail.count("neutral")
-        st.markdown('<div style="font-size:11px;font-weight:600;color:#5a5a7a;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px">Session stats</div>', unsafe_allow_html=True)
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-title">Total turns</div>
-            <div class="metric-value">{total}</div>
-        </div>
-        <div style="display:flex;gap:8px;margin-bottom:10px">
-            <div class="metric-card" style="flex:1;text-align:center">
-                <div class="metric-title">Positive</div>
-                <div style="font-size:16px;font-weight:600;color:#22c55e">{pos}</div>
-            </div>
-            <div class="metric-card" style="flex:1;text-align:center">
-                <div class="metric-title">Negative</div>
-                <div style="font-size:16px;font-weight:600;color:#ef4444">{neg}</div>
-            </div>
-            <div class="metric-card" style="flex:1;text-align:center">
-                <div class="metric-title">Neutral</div>
-                <div style="font-size:16px;font-weight:600;color:#818cf8">{neu}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("<hr>", unsafe_allow_html=True)
-
-    # Quick messages
-    st.markdown('<div style="font-size:11px;font-weight:600;color:#5a5a7a;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px">Try these</div>', unsafe_allow_html=True)
-    for qm in QUICK_MESSAGES:
-        if st.button(qm, key=f"q_{qm}", use_container_width=True):
-            st.session_state.quick_msg = qm
-            st.rerun()
-
-    st.markdown("<hr>", unsafe_allow_html=True)
-
-    if st.button("🔄 Reset conversation", use_container_width=True):
-        st.session_state.messages        = []
-        st.session_state.sentiment_trail = []
-        st.session_state.last_scores     = None
-        st.session_state.last_sentiment  = None
-        st.session_state.total_turns     = 0
-        st.rerun()
-
-
-# ── Main area ─────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════
+# HEADER (like Image 2)
+# ══════════════════════════════════════════════════════════════════
 st.markdown("""
-<div style='padding:8px 0 20px'>
-    <div style='font-size:22px;font-weight:600;color:#e0e0f0'>Sentiment-Aware Conversational System</div>
-    <div style='font-size:13px;color:#5a5a7a;margin-top:3px'>Detecting emotion · Responding with empathy · Optimized for Nigerian context</div>
+<div class="header-bar">
+    <div class="header-icon">🧠</div>
+    <div class="header-text">
+        <div class="header-title">Sentiment-Aware Conversational System</div>
+        <div class="header-subtitle">Nigerian Context NLP · BERT-LSTM Architecture</div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("<hr>", unsafe_allow_html=True)
 
-# Chat area
+# ══════════════════════════════════════════════════════════════════
+# LIVE SCORES BAR (like Image 2)
+# ══════════════════════════════════════════════════════════════════
+if st.session_state.last_scores:
+    st.markdown(scores_bar_html(st.session_state.last_scores), unsafe_allow_html=True)
+else:
+    st.markdown(empty_scores_bar_html(), unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════
+# CHAT AREA (like Image 2)
+# ══════════════════════════════════════════════════════════════════
 chat_area = st.container()
 
 with chat_area:
     if not st.session_state.messages:
+        # Welcome screen
         st.markdown("""
         <div class="welcome-wrap">
             <div class="welcome-icon">💬</div>
@@ -640,55 +690,108 @@ with chat_area:
             </div>
         </div>
         """, unsafe_allow_html=True)
+
+        # Quick message chips in welcome screen
+        cols = st.columns(3)
+        for i, qm in enumerate(QUICK_MESSAGES[:3]):
+            with cols[i]:
+                if st.button(qm, key="welcome_q_" + str(i), use_container_width=True):
+                    st.session_state.quick_msg = qm
+                    st.rerun()
+
+        cols2 = st.columns(3)
+        for i, qm in enumerate(QUICK_MESSAGES[3:]):
+            with cols2[i]:
+                if st.button(qm, key="welcome_q2_" + str(i), use_container_width=True):
+                    st.session_state.quick_msg = qm
+                    st.rerun()
     else:
-        for msg in st.session_state.messages:
+        # Chat messages - render like Image 2
+        for i, msg in enumerate(st.session_state.messages):
             if msg["role"] == "user":
-                st.markdown(f"""
-                <div class="user-bubble">
-                    <div class="user-label">You</div>
-                    <div class="user-text">{msg["content"]}</div>
-                    {badge_html(msg["sentiment"], msg["confidence"])}
-                </div>
-                """, unsafe_allow_html=True)
+                # Get timestamp if available
+                ts = ""
+                if i < len(st.session_state.timestamps):
+                    ts = st.session_state.timestamps[i]
+
+                st.markdown(
+                    '<div class="message-wrapper">'
+                    '  <div class="message-meta message-meta-user">You · ' + ts + '</div>'
+                    '  <div class="user-bubble-wrap">'
+                    '    <div class="user-text">' + msg["content"] + '</div>'
+                    '  </div>'
+                    '  <div class="badge-wrap-user">'
+                    + badge_html(msg["sentiment"], msg["confidence"]) +
+                    '  </div>'
+                    '  <div class="confidence-text">' + f"{msg['confidence']:.1f}" + '% confidence</div>'
+                    '</div>',
+                    unsafe_allow_html=True
+                )
             else:
-                st.markdown(f"""
-                <div class="bot-bubble">
-                    <div class="bot-label">SentiChat</div>
-                    <div class="bot-text">{msg["content"]}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                ts = ""
+                if i < len(st.session_state.timestamps):
+                    ts = st.session_state.timestamps[i]
 
-st.markdown("<hr>", unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="message-wrapper">'
+                    '  <div class="message-meta message-meta-bot">System · ' + ts + '</div>'
+                    '  <div class="bot-bubble-wrap">'
+                    '    <div class="bot-text">' + msg["content"] + '</div>'
+                    '  </div>'
+                    '</div>',
+                    unsafe_allow_html=True
+                )
 
-# ── Input clearing trick ──────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════════
+# INPUT AREA
+# ══════════════════════════════════════════════════════════════════
 if "input_key" not in st.session_state:
     st.session_state.input_key = 0
 
-# Input area
-col1, col2 = st.columns([5, 1])
+st.markdown('<div class="input-area">', unsafe_allow_html=True)
+
+# Input row
+col1, col2 = st.columns([6, 1])
 with col1:
     user_input = st.text_area(
         label="message",
         placeholder="Type your message in English or Nigerian Pidgin...",
         height=70,
         label_visibility="collapsed",
-        key=f"chat_input_{st.session_state.input_key}"
+        key="chat_input_" + str(st.session_state.input_key)
     )
 with col2:
-    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
     send = st.button("Send 💬", use_container_width=True, type="primary")
 
-# Handle quick message
+# Reset button (small, below)
+cols_reset = st.columns([6, 1])
+with cols_reset[1]:
+    if st.button("🔄 Reset", key="reset_btn", use_container_width=True):
+        st.session_state.messages        = []
+        st.session_state.sentiment_trail = []
+        st.session_state.last_scores     = None
+        st.session_state.last_sentiment  = None
+        st.session_state.total_turns     = 0
+        st.session_state.timestamps      = []
+        st.rerun()
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ── Handle quick message ──────────────────────────────────────────
 if st.session_state.quick_msg:
     user_input = st.session_state.quick_msg
     st.session_state.quick_msg = None
     send = True
 
-# Process message
+# ── Process message ───────────────────────────────────────────────
 if send and user_input and user_input.strip():
     # Increment key to force input reset
     st.session_state.input_key += 1
     text = user_input.strip()
+    current_time = format_time()
 
     sentiment, confidence, scores = predict_sentiment(text, model, tokenizer, device)
     st.session_state.sentiment_trail.append(sentiment)
@@ -699,16 +802,22 @@ if send and user_input and user_input.strip():
         st.session_state.sentiment_trail
     )
 
+    # Store user message with timestamp
     st.session_state.messages.append({
         "role":       "user",
         "content":    text,
         "sentiment":  sentiment,
         "confidence": confidence * 100
     })
+    st.session_state.timestamps.append(current_time)
+
+    # Store bot response with timestamp
     st.session_state.messages.append({
         "role":    "bot",
         "content": response
     })
+    st.session_state.timestamps.append(format_time())
+
     st.session_state.last_scores    = scores
     st.session_state.last_sentiment = sentiment
     st.session_state.total_turns   += 1
